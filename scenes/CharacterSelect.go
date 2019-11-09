@@ -95,4 +95,7 @@ func (v *CharacterSelect) Render(screen *ebiten.Image) {
 }
 
 func (v *CharacterSelect) Update(tickTime float64) {
+	if v.uiManager.KeyPressed(ebiten.KeyEscape) {
+		v.onExitButtonClicked()
+	}
 }

@@ -91,6 +91,10 @@ func (v *MapEngineTest) Render(screen *ebiten.Image) {
 }
 
 func (v *MapEngineTest) Update(tickTime float64) {
+	if v.uiManager.KeyPressed(ebiten.KeyEscape) {
+		mainMenu := CreateMainMenu(v.fileProvider, v.sceneProvider, v.uiManager, v.soundManager)
+		mainMenu.ShowTrademarkScreen = false
+		v.sceneProvider.SetNextScene(mainMenu)
 	if v.uiManager.KeyPressed(ebiten.KeyF8) {
 		if ebiten.IsVsyncEnabled() == true {
 			ebiten.SetVsyncEnabled(false)

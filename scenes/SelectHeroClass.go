@@ -393,6 +393,9 @@ func (v *SelectHeroClass) Render(screen *ebiten.Image) {
 }
 
 func (v *SelectHeroClass) Update(tickTime float64) {
+	if v.uiManager.KeyPressed(ebiten.KeyEscape) {
+		v.onExitButtonClicked()
+	}
 	canSelect := true
 	for _, info := range v.heroRenderInfo {
 		if info.Stance != HeroStanceIdle && info.Stance != HeroStanceIdleSelected && info.Stance != HeroStanceSelected {

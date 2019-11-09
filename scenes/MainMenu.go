@@ -239,6 +239,9 @@ func (v *MainMenu) Render(screen *ebiten.Image) {
 
 // Update runs the update logic on the main menu
 func (v *MainMenu) Update(tickTime float64) {
+	if v.uiManager.KeyPressed(ebiten.KeyEscape) {
+		v.onExitButtonClicked()
+	}
 	if v.ShowTrademarkScreen {
 		if v.uiManager.CursorButtonPressed(ui.CursorButtonLeft) {
 			if v.leftButtonHeld {

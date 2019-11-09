@@ -91,6 +91,9 @@ const secondsPerCycle = float64(0.02)
 
 // Update runs the update logic on the credits scene
 func (v *Credits) Update(tickTime float64) {
+	if v.uiManager.KeyPressed(ebiten.KeyEscape) {
+		v.onExitButtonClicked()
+	}
 	v.cycleTime += tickTime
 	for v.cycleTime >= secondsPerCycle {
 		v.cycleTime -= secondsPerCycle
