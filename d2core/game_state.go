@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -108,23 +107,16 @@ func CreateGameState(heroName string, hero d2enum.Hero, hardcore bool) *GameStat
 }
 
 func getGameBaseSavePath() string {
-	if runtime.GOOS == "windows" {
-		appDataPath := os.Getenv("APPDATA")
-		basePath := path.Join(appDataPath, "OpenDiablo2", "Saves")
-		if err := os.MkdirAll(basePath, os.ModeDir); err != nil {
-			log.Panicf(err.Error())
-		}
-		return basePath
-	}
-	homeDir, err := os.UserHomeDir()
+	userConfigDir, err := os.UserConfigDir()
 	if err != nil {
-		log.Panicf(err.Error())
+		log.Panicf("Error getting save path: %s", err.Error())
 	}
-	basePath := path.Join(homeDir, ".OpenDiablo2", "Saves")
-	if err := os.MkdirAll(basePath, 0755); err != nil {
-		log.Panicf(err.Error())
+
+	basePath := path.Join(userConfigDir, "OpenDiablo2", "Saves")
+	if err := os.MkdirAll(basePath, os.ModePerm); err != nil {
+		log.Panicf("Can't create save directory: %s", err.Error())
 	}
-	// TODO: Is mac supposed to have a super special place for the save games?
+
 	return basePath
 }
 
