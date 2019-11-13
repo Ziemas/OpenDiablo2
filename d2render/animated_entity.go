@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -33,22 +34,23 @@ type AnimatedEntity struct {
 	// LocationX represents the tile X position of the entity
 	LocationX float64
 	// LocationY represents the tile Y position of the entity
-	LocationY       float64
-	dccLayers       map[string]d2dcc.DCC
-	Cof             *d2cof.COF
-	palette         d2enum.PaletteType
-	base            string
-	token           string
-	animationMode   string
-	weaponClass     string
-	lastFrameTime   time.Time
-	framesToAnimate int
-	animationSpeed  int
-	direction       int
-	currentFrame    int
-	frames          map[string][]*ebiten.Image
-	frameLocations  map[string][]d2common.Rectangle
-	object          d2data.Object
+	LocationY          float64
+	SubcellX, SubcellY float64 // Coordinates within the current tile
+	dccLayers          map[string]d2dcc.DCC
+	Cof                *d2cof.COF
+	palette            d2enum.PaletteType
+	base               string
+	token              string
+	animationMode      string
+	weaponClass        string
+	lastFrameTime      time.Time
+	framesToAnimate    int
+	animationSpeed     int
+	direction          int
+	currentFrame       int
+	frames             map[string][]*ebiten.Image
+	frameLocations     map[string][]d2common.Rectangle
+	object             d2data.Object
 }
 
 // CreateAnimatedEntity creates an instance of AnimatedEntity
@@ -62,6 +64,9 @@ func CreateAnimatedEntity(object d2data.Object, fileProvider d2interface.FilePro
 	result.dccLayers = make(map[string]d2dcc.DCC)
 	result.LocationX = float64(object.X) / 5
 	result.LocationY = float64(object.Y) / 5
+
+	result.SubcellX = 1 + math.Mod(float64(object.X), 5)
+	result.SubcellY = 1 + math.Mod(float64(object.Y), 5)
 	return result
 }
 
@@ -153,10 +158,14 @@ func (v *AnimatedEntity) Render(target *ebiten.Image, offsetX, offsetY int) {
 		if v.frames[frameName] == nil {
 			continue
 		}
+
+		x := (v.SubcellX - v.SubcellY) * 16
+		y := (v.SubcellX + v.SubcellY) * 8
+
 		// TODO: Transparency op maybe, but it'l murder batch calls
 		opts := &ebiten.DrawImageOptions{}
-		opts.GeoM.Translate(float64(v.frameLocations[frameName][v.currentFrame].Left+offsetX),
-			float64(v.frameLocations[frameName][v.currentFrame].Top+offsetY+40))
+		opts.GeoM.Translate(float64(v.frameLocations[frameName][v.currentFrame].Left+offsetX)+x,
+			float64(v.frameLocations[frameName][v.currentFrame].Top+offsetY)+y)
 		if err := target.DrawImage(v.frames[frameName][v.currentFrame], opts); err != nil {
 			log.Panic(err.Error())
 		}
@@ -222,4 +231,8 @@ func (v *AnimatedEntity) cacheFrames(layerName string) {
 			}
 		}
 	}
+}
+
+func (v AnimatedEntity) GetToken() string {
+	return v.token
 }
