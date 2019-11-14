@@ -51,7 +51,7 @@ func (v *Engine) GenerateMap(regionType RegionIdType, levelPreset int) {
 
 func (v *Engine) GenerateAct1Overworld() {
 	v.soundManager.PlayBGM("/data/global/music/Act1/town1.wav") // TODO: Temp stuff here
-	randomSource := rand.NewSource(v.gameState.Seed)
+	randomSource := rand.NewSource(1)
 	region := LoadRegion(randomSource, RegionAct1Town, 1, v.fileProvider)
 	v.regions = append(v.regions, EngineRegion{
 		Rect:   d2common.Rectangle{0, 0, int(region.TileWidth), int(region.TileHeight)},
@@ -92,6 +92,7 @@ func (v *Engine) GetRegionAt(x, y int) *EngineRegion {
 func (v *Engine) Render(target *ebiten.Image) {
 	for _, region := range v.regions {
 		v.RenderRegion(region, target)
+		v.RenderRegionObjects(region, target)
 	}
 }
 
@@ -106,6 +107,34 @@ func (v *Engine) RenderRegion(region EngineRegion, target *ebiten.Image) {
 			}
 			offX += 80
 			offY += 40
+		}
+	}
+}
+
+func (v *Engine) RenderRegionObjects(region EngineRegion, target *ebiten.Image) {
+	for y := 0; y < int(region.Region.TileHeight); y++ {
+		offX := -((y + region.Rect.Top) * 80) + (region.Rect.Left * 80)
+		offY := ((y + region.Rect.Top) * 40) + (region.Rect.Left * 40)
+		for x := 0; x < int(region.Region.TileWidth); x++ {
+			sx, sy := d2helper.IsoToScreen(x+region.Rect.Left, y+region.Rect.Top, int(v.OffsetX), int(v.OffsetY))
+			if sx > -160 && sy > -160 && sx <= 880 && sy <= 1000 {
+				v.RenderTileObjects(region.Region, offX, offY, x, y, target)
+			}
+			offX += 80
+			offY += 40
+		}
+	}
+}
+
+func (v *Engine) RenderTileObjects(region *Region, offX, offY, x, y int, target *ebiten.Image) {
+	for _, obj := range region.AnimationEntities {
+		if int(math.Floor(obj.LocationX)) == x && int(math.Floor(obj.LocationY)) == y {
+			obj.Render(target, offX+int(v.OffsetX), offY+int(v.OffsetY))
+		}
+	}
+	for _, npc := range region.NPCs {
+		if int(math.Floor(npc.AnimatedEntity.LocationX)) == x && int(math.Floor(npc.AnimatedEntity.LocationY)) == y {
+			npc.Render(target, offX+int(v.OffsetX), offY+int(v.OffsetY))
 		}
 	}
 }
@@ -130,16 +159,7 @@ func (v *Engine) RenderTile(region *Region, offX, offY, x, y int, target *ebiten
 		}
 		region.RenderTile(offX+int(v.OffsetX), offY+int(v.OffsetY), x, y, RegionLayerTypeWalls, i, target)
 	}
-	for _, obj := range region.AnimationEntities {
-		if int(math.Floor(obj.LocationX)) == x && int(math.Floor(obj.LocationY)) == y {
-			obj.Render(target, offX+int(v.OffsetX), offY+int(v.OffsetY))
-		}
-	}
-	for _, npc := range region.NPCs {
-		if int(math.Floor(npc.AnimatedEntity.LocationX)) == x && int(math.Floor(npc.AnimatedEntity.LocationY)) == y {
-			npc.Render(target, offX+int(v.OffsetX), offY+int(v.OffsetY))
-		}
-	}
+
 	for i := range tile.Walls {
 		if tile.Walls[i].Hidden || tile.Walls[i].Orientation != 15 {
 			continue

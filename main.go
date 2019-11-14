@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2scene"
+	"github.com/pkg/profile"
 
 	"github.com/hajimehoshi/ebiten/ebitenutil"
 
@@ -23,7 +24,7 @@ var GitCommit string
 var d2Engine d2core.Engine
 
 func main() {
-	//defer profile.Start(profile.CPUProfile).Stop()
+	defer profile.Start(profile.CPUProfile, profile.ProfilePath(".")).Stop()
 	//runtime.LockOSThread()
 	//defer runtime.UnlockOSThread()
 	if len(GitBranch) == 0 {

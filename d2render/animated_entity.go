@@ -161,7 +161,7 @@ func (v *AnimatedEntity) Render(target *ebiten.Image, offsetX, offsetY int) {
 
 		// TODO: Not pixel perfect
 		x := ((v.SubcellX - v.SubcellY) * 16)
-		y := ((v.SubcellX + v.SubcellY) * 8)
+		y := ((v.SubcellX + v.SubcellY) * 8) - 4
 
 		// TODO: Transparency op maybe, but it'l murder batch calls
 		opts := &ebiten.DrawImageOptions{}

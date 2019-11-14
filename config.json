@@ -1,15 +1,15 @@
 {
     "Language": "ENG",
-    "FullScreen": true,
+    "FullScreen": false,
     "Scale": 1,
     "TicksPerSecond": -1,
     "RunInBackground": true,
     "VsyncEnabled": true,
     "SfxVolume": 1.0,
     "BgmVolume": 0.3,
-    "MpqPath": "C:/Program Files (x86)/Diablo II",
+    "MpqPath": "/home/ziemas/Games/Diablo II",
     "MpqLoadOrder": [
-        "Patch_D2.mpq",
+        "patch_d2.mpq",
         "d2exp.mpq",
         "d2xmusic.mpq",
         "d2xtalk.mpq",
