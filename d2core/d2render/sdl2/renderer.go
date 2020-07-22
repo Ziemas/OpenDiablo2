@@ -89,9 +89,15 @@ func (r *Renderer) Run(f func(d2interface.Surface) error, width, height int, tit
 			}
 		}
 
+		sdlMutex.Lock()
+		if err := r.renderer.SetDrawColor(0, 0, 0, 0); err != nil {
+			return err
+		}
+
 		if err := r.renderer.Clear(); err != nil {
 			return err
 		}
+		sdlMutex.Unlock()
 
 		if err := f(r); err != nil {
 			return err
