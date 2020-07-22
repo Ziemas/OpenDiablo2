@@ -37,6 +37,7 @@ func CreateRenderer() (*Renderer, error) {
 	}
 
 	renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_ACCELERATED)
+	//renderer, err := sdl.CreateRenderer(window, -1, sdl.RENDERER_SOFTWARE)
 
 	if err != nil {
 		return nil, err
@@ -253,7 +254,7 @@ func (r *Renderer) Render(sfc d2interface.Surface) error {
 		H: int32(s.height),
 	}
 
-	switch s.stateCurrent.effect {
+	switch r.stateCurrent.effect {
 	case d2enum.DrawEffectPctTransparency25:
 		s.texture.SetAlphaMod(192)
 	case d2enum.DrawEffectPctTransparency50:
@@ -262,7 +263,7 @@ func (r *Renderer) Render(sfc d2interface.Surface) error {
 		s.texture.SetAlphaMod(64)
 	case d2enum.DrawEffectModulate:
 		s.texture.SetAlphaMod(255)
-		s.texture.SetBlendMode(sdl.BLENDMODE_MOD)
+		s.texture.SetBlendMode(sdl.BLENDMODE_ADD)
 	case d2enum.DrawEffectBurn:
 	case d2enum.DrawEffectNormal:
 	case d2enum.DrawEffectMod2XTrans:
@@ -302,7 +303,7 @@ func (r *Renderer) RenderSection(sfc d2interface.Surface, bound image.Rectangle)
 		H: int32(bound.Dy()),
 	}
 
-	switch s.stateCurrent.effect {
+	switch r.stateCurrent.effect {
 	case d2enum.DrawEffectPctTransparency25:
 		s.texture.SetAlphaMod(192)
 	case d2enum.DrawEffectPctTransparency50:
@@ -311,7 +312,7 @@ func (r *Renderer) RenderSection(sfc d2interface.Surface, bound image.Rectangle)
 		s.texture.SetAlphaMod(64)
 	case d2enum.DrawEffectModulate:
 		s.texture.SetAlphaMod(255)
-		s.texture.SetBlendMode(sdl.BLENDMODE_MOD)
+		s.texture.SetBlendMode(sdl.BLENDMODE_ADD)
 	case d2enum.DrawEffectBurn:
 	case d2enum.DrawEffectNormal:
 	case d2enum.DrawEffectMod2XTrans:

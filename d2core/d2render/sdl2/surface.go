@@ -133,7 +133,7 @@ func (s *surface) Render(sfc d2interface.Surface) error {
 		target.texture.SetAlphaMod(64)
 	case d2enum.DrawEffectModulate:
 		target.texture.SetAlphaMod(255)
-		target.texture.SetBlendMode(sdl.BLENDMODE_MOD)
+		target.texture.SetBlendMode(sdl.BLENDMODE_ADD)
 	case d2enum.DrawEffectBurn:
 	case d2enum.DrawEffectNormal:
 	case d2enum.DrawEffectMod2XTrans:
