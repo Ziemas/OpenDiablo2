@@ -5,7 +5,6 @@ import (
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
-	ebiten_input "github.com/OpenDiablo2/OpenDiablo2/d2core/d2input/ebiten"
 )
 
 type inputManager struct {
@@ -19,9 +18,9 @@ type inputManager struct {
 	entries handlerEntryList
 }
 
-func New() d2interface.InputManager {
+func New(inputService d2interface.InputService) d2interface.InputManager {
 	return &inputManager{
-		inputService: ebiten_input.InputService{},
+		inputService: inputService,
 	}
 }
 
