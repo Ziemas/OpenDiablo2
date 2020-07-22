@@ -2,6 +2,7 @@ package d2maprenderer
 
 import (
 	"errors"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"image/color"
 	"log"
 	"math"
@@ -14,16 +15,18 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapengine"
 )
 
-// MapRenderer manages the game viewport and camera. It requests tile and entity data from MapEngine and renders it.
+// MapRenderer manages the game viewport and Camera. It requests tile and entity data from MapEngine and renders it.
 type MapRenderer struct {
-	renderer      d2interface.Renderer   // Used for drawing operations
-	mapEngine     *d2mapengine.MapEngine // The map engine that is being rendered
-	palette       d2interface.Palette    // The palette used for this map
-	viewport      *Viewport              // Used for rendering offsets
-	camera        Camera                 // Used to determine where on the map we are rendering
-	debugVisLevel int                    // Debug visibility index (0=none, 1=tiles, 2=sub-tiles)
-	lastFrameTime float64                // The last time the map was rendered
-	currentFrame  int                    // Current render frame (for animations)
+	renderer         d2interface.Renderer   // Used for drawing operations
+	mapEngine        *d2mapengine.MapEngine // The map engine that is being rendered
+	palette          d2interface.Palette    // The palette used for this map
+	viewport         *Viewport              // Used for rendering offsets
+	Camera           Camera                 // Used to determine where on the map we are rendering
+	mapDebugVisLevel int                    // Map debug visibility index (0=none, 1=tiles,
+	// 2=sub-tiles)
+	entityDebugVisLevel int     // Entity Debug visibility index (0=none, 1=vectors)
+	lastFrameTime       float64 // The last time the map was rendered
+	currentFrame        int     // Current render frame (for animations)
 }
 
 // CreateMapRenderer creates a new MapRenderer, sets the required fields and returns a pointer to it.
@@ -34,10 +37,17 @@ func CreateMapRenderer(renderer d2interface.Renderer, mapEngine *d2mapengine.Map
 		viewport:  NewViewport(0, 0, 800, 600),
 	}
 
-	result.viewport.SetCamera(&result.camera)
+	result.Camera = Camera{}
+	startPosition := d2vector.NewPosition(0, 0)
+	result.Camera.position = &startPosition
+	result.viewport.SetCamera(&result.Camera)
 
 	term.BindAction("mapdebugvis", "set map debug visualization level", func(level int) {
-		result.debugVisLevel = level
+		result.mapDebugVisLevel = level
+	})
+
+	term.BindAction("entitydebugvis", "set entity debug visualization level", func(level int) {
+		result.entityDebugVisLevel = level
 	})
 
 	if mapEngine.LevelType().ID != 0 {
@@ -83,22 +93,31 @@ func (mr *MapRenderer) Render(target d2interface.Surface) {
 	mr.renderPass1(target, startX, startY, endX, endY)
 	mr.renderPass2(target, startX, startY, endX, endY)
 
-	if mr.debugVisLevel > 0 {
-		mr.renderDebug(mr.debugVisLevel, target, startX, startY, endX, endY)
+	if mr.mapDebugVisLevel > 0 {
+		mr.renderMapDebug(mr.mapDebugVisLevel, target, startX, startY, endX, endY)
 	}
 
 	mr.renderPass3(target, startX, startY, endX, endY)
 	mr.renderPass4(target, startX, startY, endX, endY)
+
+	if mr.entityDebugVisLevel > 0 {
+		mr.renderEntityDebug(target)
+	}
 }
 
-// MoveCameraTo sets the position of the camera to the given x and y coordinates.
-func (mr *MapRenderer) MoveCameraTo(x, y float64) {
-	mr.camera.MoveTo(x, y)
+// MoveCameraTo sets the position of the Camera to the given x and y coordinates.
+func (mr *MapRenderer) MoveCameraTo(position *d2vector.Position) {
+	mr.Camera.MoveTo(position)
 }
 
-// MoveCameraBy adds the given vector to the current position of the camera.
-func (mr *MapRenderer) MoveCameraBy(x, y float64) {
-	mr.camera.MoveBy(x, y)
+// MoveCameraBy adds the given vector to the current position of the Camera.
+func (mr *MapRenderer) MoveCameraBy(vector *d2vector.Vector) {
+	mr.Camera.MoveBy(vector)
+}
+
+// MoveCameraTargetBy adds the given vector to the current position of the Camera.
+func (mr *MapRenderer) MoveCameraTargetBy(vector *d2vector.Vector) {
+	mr.Camera.MoveTargetBy(vector)
 }
 
 // ScreenToWorld returns the world position for the given screen (pixel) position.
@@ -137,7 +156,9 @@ func (mr *MapRenderer) renderPass2(target d2interface.Surface, startX, startY, e
 
 			// TODO: Do not loop over every entity every frame
 			for _, mapEntity := range *mr.mapEngine.Entities() {
-				entityX, entityY := mapEntity.GetPosition()
+				pos := mapEntity.GetPosition()
+				vec := pos.World()
+				entityX, entityY := vec.X(), vec.Y()
 
 				if mapEntity.GetLayer() != 1 {
 					continue
@@ -167,7 +188,9 @@ func (mr *MapRenderer) renderPass3(target d2interface.Surface, startX, startY, e
 
 			// TODO: Do not loop over every entity every frame
 			for _, mapEntity := range *mr.mapEngine.Entities() {
-				entityX, entityY := mapEntity.GetPosition()
+				pos := mapEntity.GetPosition()
+				vec := pos.World()
+				entityX, entityY := vec.X(), vec.Y()
 
 				if mapEntity.GetLayer() == 1 {
 					continue
@@ -199,36 +222,36 @@ func (mr *MapRenderer) renderPass4(target d2interface.Surface, startX, startY, e
 	}
 }
 
-func (mr *MapRenderer) renderTilePass1(tile *d2ds1.TileRecord, target d2interface.Surface) {
-	for _, wall := range tile.Walls {
+func (mr *MapRenderer) renderTilePass1(tile *d2mapengine.MapTile, target d2interface.Surface) {
+	for _, wall := range tile.Components.Walls {
 		if !wall.Hidden && wall.Prop1 != 0 && wall.Type.LowerWall() {
 			mr.renderWall(wall, mr.viewport, target)
 		}
 	}
 
-	for _, floor := range tile.Floors {
+	for _, floor := range tile.Components.Floors {
 		if !floor.Hidden && floor.Prop1 != 0 {
 			mr.renderFloor(floor, target)
 		}
 	}
 
-	for _, shadow := range tile.Shadows {
+	for _, shadow := range tile.Components.Shadows {
 		if !shadow.Hidden && shadow.Prop1 != 0 {
 			mr.renderShadow(shadow, target)
 		}
 	}
 }
 
-func (mr *MapRenderer) renderTilePass2(tile *d2ds1.TileRecord, target d2interface.Surface) {
-	for _, wall := range tile.Walls {
+func (mr *MapRenderer) renderTilePass2(tile *d2mapengine.MapTile, target d2interface.Surface) {
+	for _, wall := range tile.Components.Walls {
 		if !wall.Hidden && wall.Type.UpperWall() {
 			mr.renderWall(wall, mr.viewport, target)
 		}
 	}
 }
 
-func (mr *MapRenderer) renderTilePass3(tile *d2ds1.TileRecord, target d2interface.Surface) {
-	for _, wall := range tile.Walls {
+func (mr *MapRenderer) renderTilePass3(tile *d2mapengine.MapTile, target d2interface.Surface) {
+	for _, wall := range tile.Components.Walls {
 		if wall.Type == d2enum.TileRoof {
 			mr.renderWall(wall, mr.viewport, target)
 		}
@@ -290,13 +313,43 @@ func (mr *MapRenderer) renderShadow(tile d2ds1.FloorShadowRecord, target d2inter
 	target.Render(img)
 }
 
-func (mr *MapRenderer) renderDebug(debugVisLevel int, target d2interface.Surface, startX, startY, endX, endY int) {
+func (mr *MapRenderer) renderMapDebug(mapDebugVisLevel int, target d2interface.Surface, startX, startY, endX, endY int) {
 	for tileY := startY; tileY < endY; tileY++ {
 		for tileX := startX; tileX < endX; tileX++ {
 			mr.viewport.PushTranslationWorld(float64(tileX), float64(tileY))
-			mr.renderTileDebug(tileX, tileY, debugVisLevel, target)
+			mr.renderTileDebug(tileX, tileY, mapDebugVisLevel, target)
 			mr.viewport.PopTranslation()
 		}
+	}
+}
+
+func (mr *MapRenderer) renderEntityDebug(target d2interface.Surface) {
+	entities := *mr.mapEngine.Entities()
+	for idx := range entities {
+		e := entities[idx]
+		pos := e.GetPosition()
+		world := pos
+		x, y := world.X()/5, world.Y()/5
+		velocity := e.GetVelocity()
+		velocity = velocity.Clone()
+		// velocity.Scale(60) // arbitrary scale value, just to make it easy to see
+		vx, vy := mr.viewport.WorldToOrtho(velocity.X(), velocity.Y())
+		screenX, screenY := mr.viewport.WorldToScreen(x, y)
+
+		offX, offY := 40, -40
+
+		mr.viewport.PushTranslationWorld(x, y)
+		target.PushTranslation(screenX, screenY)
+		target.DrawLine(offX, offY, color.RGBA{255, 255, 255, 128})
+		target.PushTranslation(offX+10, offY-20)
+		target.PushTranslation(-10, -10)
+		target.DrawRect(200, 50, color.RGBA{0, 0, 0, 64})
+		target.Pop()
+		target.DrawTextf("World (%.2f, %.2f)\nVelocity (%.2f, %.2f)", x, y, vx, vy)
+		target.Pop()
+		target.DrawLine(int(vx), int(vy), color.RGBA{64, 255, 0, 255})
+		target.Pop()
+		mr.viewport.PopTranslation()
 	}
 }
 
@@ -350,7 +403,7 @@ func (mr *MapRenderer) renderTileDebug(ax, ay int, debugVisLevel int, target d2i
 			target.Pop()
 		}*/
 
-		for i, wall := range tile.Walls {
+		for i, wall := range tile.Components.Walls {
 			if wall.Type.Special() {
 				target.PushTranslation(-20, 10+(i+1)*14)
 				target.DrawTextf("s: %v-%v", wall.Style, wall.Sequence)
@@ -363,9 +416,9 @@ func (mr *MapRenderer) renderTileDebug(ax, ay int, debugVisLevel int, target d2i
 				isoX := (xx - yy) * 16
 				isoY := (xx + yy) * 8
 
-				var walkableArea = (*mr.mapEngine.WalkMesh())[((yy+(ay*5))*mr.mapEngine.Size().Width*5)+xx+(ax*5)]
+				blocked := tile.GetSubTileFlags(xx, yy).BlockWalk
 
-				if !walkableArea.Walkable {
+				if blocked {
 					target.PushTranslation(isoX-3, isoY+4)
 					target.DrawRect(5, 5, tileCollisionColor)
 					target.Pop()
@@ -387,6 +440,8 @@ func (mr *MapRenderer) Advance(elapsed float64) {
 	if mr.currentFrame > 9 {
 		mr.currentFrame = 0
 	}
+
+	mr.Camera.Advance(elapsed)
 }
 
 func loadPaletteForAct(levelType d2enum.RegionIdType) (d2interface.Palette, error) {
@@ -428,4 +483,9 @@ func (mr *MapRenderer) ViewportToRight() {
 // ViewportDefault resets the viewport to it's default position.
 func (mr *MapRenderer) ViewportDefault() {
 	mr.viewport.resetAlign()
+}
+
+// SetCameraTarget sts the Camera target
+func (mr *MapRenderer) SetCameraTarget(position *d2vector.Position) {
+	mr.Camera.SetTarget(position)
 }

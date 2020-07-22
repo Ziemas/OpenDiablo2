@@ -2,6 +2,7 @@ package d2gamescreen
 
 import (
 	"fmt"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"log"
 	"os"
 	"strings"
@@ -13,7 +14,6 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2maprenderer"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2fileformats/d2ds1"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2screen"
 	"github.com/OpenDiablo2/OpenDiablo2/d2game/d2player"
@@ -91,7 +91,7 @@ type MapEngineTest struct {
 
 	lastMouseX, lastMouseY int
 	selX, selY             int
-	selectedTile           *d2ds1.TileRecord
+	selectedTile           *d2mapengine.MapTile
 
 	//TODO: this is region specific properties, should be refactored for multi-region rendering
 	currentRegion int
@@ -163,11 +163,12 @@ func (met *MapEngineTest) loadRegionByIndex(n, levelPreset, fileIndex int) {
 		met.mapEngine = d2mapengine.CreateMapEngine() // necessary for map name update
 		met.mapEngine.SetSeed(time.Now().UnixNano())
 		met.mapEngine.GenerateMap(d2enum.RegionIdType(n), levelPreset, fileIndex, true)
-		met.mapEngine.RegenerateWalkPaths()
+		//met.mapEngine.RegenerateWalkPaths()
 	}
 
 	met.mapRenderer.SetMapEngine(met.mapEngine)
-	met.mapRenderer.MoveCameraTo(met.mapRenderer.WorldToOrtho(met.mapEngine.GetCenterPosition()))
+	position := d2vector.NewPosition(met.mapRenderer.WorldToOrtho(met.mapEngine.GetCenterPosition()))
+	met.mapRenderer.SetCameraTarget(&position)
 }
 
 // OnLoad loads the resources for the Map Engine Test screen
@@ -225,7 +226,7 @@ func (met *MapEngineTest) Render(screen d2interface.Surface) error {
 		screen.PushTranslation(15, 16)
 		screen.DrawTextf("Walls")
 		tpop := 0
-		for _, wall := range met.selectedTile.Walls {
+		for _, wall := range met.selectedTile.Components.Walls {
 			screen.PushTranslation(0, 12)
 			tpop++
 			tmpString := fmt.Sprintf("%#v", wall)
@@ -243,7 +244,7 @@ func (met *MapEngineTest) Render(screen d2interface.Surface) error {
 		screen.PushTranslation(170, 0)
 		screen.DrawTextf("Floors")
 		tpop = 0
-		for _, floor := range met.selectedTile.Floors {
+		for _, floor := range met.selectedTile.Components.Floors {
 			screen.PushTranslation(0, 12)
 			tpop++
 			tmpString := fmt.Sprintf("%#v", floor)
@@ -261,7 +262,7 @@ func (met *MapEngineTest) Render(screen d2interface.Surface) error {
 		tpop = 0
 		screen.PushTranslation(170, 0)
 		screen.DrawTextf("Shadows")
-		for _, shadow := range met.selectedTile.Shadows {
+		for _, shadow := range met.selectedTile.Components.Shadows {
 			screen.PushTranslation(0, 12)
 			tpop++
 			tmpString := fmt.Sprintf("%#v", shadow)
@@ -279,7 +280,7 @@ func (met *MapEngineTest) Render(screen d2interface.Surface) error {
 		tpop = 0
 		screen.PushTranslation(170, 0)
 		screen.DrawTextf("Substitutions")
-		for _, subst := range met.selectedTile.Substitutions {
+		for _, subst := range met.selectedTile.Components.Substitutions {
 			screen.PushTranslation(0, 12)
 			tpop++
 			tmpString := fmt.Sprintf("%#v", subst)
@@ -317,11 +318,40 @@ func (met *MapEngineTest) OnMouseButtonDown(event d2interface.MouseEvent) bool {
 		met.selY = int(py)
 		met.selectedTile = met.mapEngine.TileAt(int(px), int(py))
 
+		camVect := met.mapRenderer.Camera.GetPosition().Vector
+
+		x, y := float64(met.lastMouseX-400)/5, float64(met.lastMouseY-300)/5
+		targetPosition := d2vector.NewPositionTile(x, y)
+		targetPosition.Add(&camVect)
+
+		met.mapRenderer.SetCameraTarget(&targetPosition)
+
 		return true
 	}
 
 	if event.Button() == d2enum.MouseButtonRight {
 		met.selectedTile = nil
+
+		return true
+	}
+
+	return false
+}
+
+func (met *MapEngineTest) OnMouseButtonRepeat(event d2interface.MouseEvent) bool {
+	if event.Button() == d2enum.MouseButtonLeft {
+		px, py := met.mapRenderer.ScreenToWorld(met.lastMouseX, met.lastMouseY)
+		met.selX = int(px)
+		met.selY = int(py)
+		met.selectedTile = met.mapEngine.TileAt(int(px), int(py))
+
+		camVect := met.mapRenderer.Camera.GetPosition().Vector
+
+		x, y := float64(met.lastMouseX-400)/5, float64(met.lastMouseY-300)/5
+		targetPosition := d2vector.NewPositionTile(x, y)
+		targetPosition.Add(&camVect)
+
+		met.mapRenderer.SetCameraTarget(&targetPosition)
 
 		return true
 	}
@@ -345,22 +375,30 @@ func (met *MapEngineTest) OnKeyRepeat(event d2interface.KeyEvent) bool {
 	}
 
 	if event.Key() == d2enum.KeyDown {
-		met.mapRenderer.MoveCameraBy(0, moveSpeed)
+		v := d2vector.NewVector(0, moveSpeed)
+		met.mapRenderer.MoveCameraTargetBy(&v)
+
 		return true
 	}
 
 	if event.Key() == d2enum.KeyUp {
-		met.mapRenderer.MoveCameraBy(0, -moveSpeed)
+		v := d2vector.NewVector(0, -moveSpeed)
+		met.mapRenderer.MoveCameraTargetBy(&v)
+
 		return true
 	}
 
 	if event.Key() == d2enum.KeyRight {
-		met.mapRenderer.MoveCameraBy(moveSpeed, 0)
+		v := d2vector.NewVector(moveSpeed, 0)
+		met.mapRenderer.MoveCameraTargetBy(&v)
+
 		return true
 	}
 
 	if event.Key() == d2enum.KeyLeft {
-		met.mapRenderer.MoveCameraBy(-moveSpeed, 0)
+		v := d2vector.NewVector(-moveSpeed, 0)
+		met.mapRenderer.MoveCameraTargetBy(&v)
+
 		return true
 	}
 
